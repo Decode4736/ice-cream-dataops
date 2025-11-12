@@ -1,0 +1,61 @@
+workflowExternalId: wf_icapi_data_pipeline
+version: '1'
+workflowDefinition:
+  tasks:
+  - externalId: create_asset_hierarchy_task
+    type: 'transformation'
+    parameters:
+      transformation:
+        externalId: 'create_asset_hierarchy'
+        concurrencyPolicy: fail
+    name: 'task 1 - create_asset_hierarchy'
+    description: create asset hierarchy
+    retries: 3
+    timeout: 3600
+    onFailure: 'abortWorkflow'
+
+  - externalId: contextualize_ts_assets_task
+    type: 'transformation'
+    parameters:
+      transformation:
+        externalId: 'contextualize_ts_assets'
+        concurrencyPolicy: fail
+    name: 'Task 2 - contextualize_ts_assets'
+    description: contextualize timeseries assets
+    retries: 3
+    timeout: 3600
+    onFailure: 'abortWorkflow'
+    dependsOn:
+      - externalId: 'create_asset_hierarchy_task'
+  
+  - externalId: icapi_datapoints_extractor_task
+    type: function
+    name: 'Task 3 - icapi_datapoints_extractor'
+    description: extract ice cream api datapoints
+    parameters:
+      function:
+        externalId: icapi_datapoints_extractor
+        data: { "hours": 1 }
+    retries: 3
+    timeout: 3600
+    onFailure: abortWorkflow
+    dependsOn:
+      - externalId: contextualize_ts_assets_task
+
+  
+  - externalId: oee_timeseries_task
+    type: function
+    name: 'Task 4 - oee timeseries'
+    description: OEE Timeseries
+    parameters:
+      function:
+        externalId: oee_timeseries
+        data: {
+          "sites": ["Houston","Oslo","Kuala_Lumpur","Hannover","Nuremberg","Marseille","Sao_Paulo","Chicago","Rotterdam","London"],
+          "lookback_minutes": 16
+        }
+    retries: 3
+    timeout: 3600
+    onFailure: abortWorkflow
+    dependsOn:
+      - externalId: icapi_datapoints_extractor_task
